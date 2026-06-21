@@ -279,7 +279,7 @@ function CountOnlyRow({ cfg, value, onChange, hasError }) {
       e("button", { onClick:()=>{ SFX.plus(); onChange({ ...v,count:Math.min((v.count||0)+1,cfg.max||99) }); }, style: cBtn(P.pri,P.card) }, "+")
     ),
     eff!=null && e("div", { style: { height:8,background:P.bg,borderRadius:8,overflow:"hidden",border:`1px solid ${P.border}`,marginBottom:10 } },
-      e("div", { height:"100%",width:`${Math.min((v.count||0)/Math.max(eff,1),1)*100}%`,background:mismatch?P.coral:P.mint,borderRadius:8,transition:"width .2s" })
+      e("div", { style: { height:"100%",width:`${Math.min((v.count||0)/Math.max(eff,1),1)*100}%`,background:mismatch?P.coral:P.mint,borderRadius:8,transition:"width .2s" } })
     ),
     e(LoanRow, { v: v, onChange: onChange, maxLoan: 99 }),
     e("input", { placeholder: "📝 備註（選填）", value: v.note||"", onChange: e=>onChange({ ...v,note:e.target.value }),
