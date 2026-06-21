@@ -14,6 +14,12 @@
     input,button{font-family:inherit;}
     @keyframes spin{to{transform:rotate(360deg)}}
     @keyframes pulse2{0%,100%{opacity:1}50%{opacity:0.4}}
+    @keyframes bounceIn{
+      0%{opacity:0;transform:scale(0.3);},
+      50%{opacity:1;transform:scale(1.05);},
+      70%{transform:scale(0.9);},
+      100%{transform:scale(1);}
+    }
   </style>
 </head>
 <body>
@@ -23,7 +29,6 @@
 const { useState, useEffect } = React;
 const e = React.createElement;
 
-// 請更換成您針對 1 號車部署的 GAS 網址
 const GAS_URL = "https://script.google.com/macros/s/AKfycbw7zsykFlp7zcyIxCP5iieN7v-82SsDEkbYPNGT1z7W7wQsyDq5rfgK5d_CfgyrGI5T/exec";
 const STORAGE_KEY = "ward_check_records_8c_v1";
 
@@ -161,6 +166,42 @@ function ConfirmModal({ title, body, onConfirm, onCancel }) {
   );
 }
 
+// 點班完成後的專屬高醒目提醒大頁面
+function ReminderPage({ onFinish }) {
+  useEffect(() => {
+    SFX.success();
+  }, []);
+
+  return e("div", { style: { minHeight:"90vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"20px 10px" } },
+    e("div", { style: { background:"#FFFFFF", borderRadius:28, width:"100%", maxWidth:480, padding:"32px 24px", boxShadow:"0 20px 40px rgba(124,92,191,0.18)", border:`3px solid ${P.pri}`, textAlgin:"center", animation:"bounceIn 0.6s ease-out" } },
+      e("div", { style: { textAlign:"center", fontSize:54, marginBottom:10 } }, "🎉 點班同步成功"),
+      e("h3", { style: { textAlign:"center", fontSize:18, fontWeight:700, color:P.teal, marginBottom:28 } }, "點班資料已成功上傳雲端試算表"),
+      
+      e("div", { style: { height:2, background:`linear-gradient(90deg, transparent, ${P.border}, transparent)`, marginBottom:28 } }),
+      
+      // 提醒項目 1: 訂便當
+      e("div", { style: { background:"#FFF4E6", border:`2.5px solid ${P.orange}`, borderRadius:20, padding:"20px 16px", marginBottom:20, boxShadow:"0 4px 12px rgba(255,146,43,0.15)", textAlign:"center" } },
+        e("div", { style: { fontSize:48, marginBottom:4 } }, "🍱"),
+        e("div", { style: { fontSize:26, fontWeight:900, color:"#D9480F", letterSpacing:1.5 } }, "幫同事訂便當"),
+        e("div", { style: { fontSize:13, fontWeight:700, color:"#A61E4D", marginTop:6 } }, "📢 記得統計人數與致電外送店家喔！")
+      ),
+
+      // 提醒項目 2: 補車
+      e("div", { style: { background:"#EBFBEE", border:`2.5px solid ${P.mint}`, borderRadius:20, padding:"20px 16px", marginBottom:32, boxShadow:"0 4px 12px rgba(81,207,102,0.15)", textAlign:"center" } },
+        e("div", { style: { fontSize:48, marginBottom:4 } }, "🛒"),
+        e("div", { style: { fontSize:26, fontWeight:900, color:"#2B8A3E", letterSpacing:1.5 } }, "下班記得補車"),
+        e("div", { style: { fontSize:13, fontWeight:700, color:"#0B7285", marginTop:6 } }, "📢 檢查點班品項，補齊備用基數！")
+      ),
+
+      // 返回按鈕
+      e("button", { 
+        onClick: () => { SFX.tap(); onFinish(); }, 
+        style: { width:"100%", padding:"16px", borderRadius:18, border:"none", background:`linear-gradient(135deg, ${P.pri}, ${P.priD})`, color:"#fff", fontWeight:900, fontSize:17, cursor:"pointer", boxShadow:`0 6px 16px ${P.pri}55`, transition:"all 0.15s" } 
+      }, "確認並返回歷史紀錄 👍")
+    )
+  );
+}
+
 function BedPicker({ selected, onChange, remaining }) {
   const currentSelected = selected || [];
   return e("div", null,
@@ -245,7 +286,7 @@ function SplitItemRow({ cfg, value, onChange, hasError }) {
     ),
     e("div", { style: { marginBottom:10 } },
       e("div", { style: { height:8,background:P.bg,borderRadius:8,overflow:"hidden",border:`1px solid ${P.border}` } },
-        e("div", { style: { height:"100%",width:`${pct*100}%`,background:statusColor,borderRadius:8,transition:"width .2s" } })
+        e("div", { height:"100%",width:`${pct*100}%`,background:statusColor,borderRadius:8,transition:"width .2s" } })
       ),
       e("div", { style: { fontSize:11,marginTop:4,textAlign:"right",fontWeight:700,color:statusColor } },
         `${tot} / ${eMax} 個 ${diff>0?`⚠ 還差 ${diff} 個`:diff<0?`⚠ 超出 ${-diff} 個`:"✓ 全數交代完畢"}`
@@ -309,7 +350,7 @@ function SyncingOverlay() {
 const lbl = { fontSize:13,fontWeight:700,color:P.muted,display:"block" };
 const inp = { width:"100%",padding:"10px 14px",borderRadius:12,marginTop:4,border:`1.5px solid ${P.border}`,fontSize:15,boxSizing:"border-box",outline:"none",background:P.bg };
 
-function CheckForm({ records, onSave, onDone, onCancel, editRecord }) {
+function CheckForm({ records, onSave, onDone, onCancel, editRecord, triggerReminder }) {
   const today = new Date().toISOString().split("T")[0];
   const [nurse,    setNurse]    = useState(editRecord?.nurse||"");
   const [date,     setDate]     = useState(editRecord?.date||today);
@@ -328,7 +369,6 @@ function CheckForm({ records, onSave, onDone, onCancel, editRecord }) {
   const [saving,  setSaving]  = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [carried, setCarried] = useState(false);
-  const [goAfter, setGoAfter] = useState(false);
 
   useEffect(() => {
     if (!editRecord && records && records.length > 0) {
@@ -346,7 +386,7 @@ function CheckForm({ records, onSave, onDone, onCancel, editRecord }) {
     }
   }, []);
 
-  function closeModal() { if (goAfter) { setModal(null); onDone(); } else setModal(null); }
+  function closeModal() { setModal(null); }
   const isEdit = !!editRecord;
 
   function handleChange(id, val) { setItems(p=>({ ...p,[id]:val })); }
@@ -388,12 +428,8 @@ function CheckForm({ records, onSave, onDone, onCancel, editRecord }) {
         }),
       };
       await fetch(GAS_URL, { method: "POST", mode: "no-cors", body: JSON.stringify(payload) });
-      setSyncing(false); SFX.success(); setGoAfter(true);
-      setModal({ 
-        type:"success", 
-        title:"雲端同步成功 ☁️✅", 
-        body:"點班資料已成功同步至雲端試算表！\n\n💡 溫馨提醒：\n1. 今天要記得「幫同事訂便當」喔！🍱\n2. 下班記得「補車」！🛒" 
-      });
+      setSyncing(false); 
+      triggerReminder(); // 直接導向高效果的提醒大頁面
     } catch (err) {
       setSyncing(false); SFX.error();
       setModal({ type:"warn", title:"雲端同步失敗 ⚠️", body:`資料已儲存於本機，但同步試算表時發生錯誤。\n（${err.message}）\n\n可稍後再試。` });
@@ -503,7 +539,7 @@ function RecordCard({ record, onDelete, onEdit }) {
 
 function App() {
   const [records, setRecords] = useState([]);
-  const [view, setView] = useState("list");
+  const [view, setView] = useState("list"); // "list", "form", "reminder"
   const [editRecord, setEditRecord] = useState(null);
 
   useEffect(() => { setRecords(loadRecords()); }, []);
@@ -512,7 +548,6 @@ function App() {
     const currentRecords = records || [];
     const next = isEdit ? currentRecords.map(r => r && r.id === record.id ? record : r) : [record, ...currentRecords];
     setRecords(next); saveRecords(next);
-    setView("list"); setEditRecord(null);
   }
   function handleDelete(id) { 
     const currentRecords = records || [];
@@ -521,23 +556,31 @@ function App() {
   }
 
   return e("div", { style: { maxWidth: 600, margin: "0 auto", paddingBottom: 40 } },
-    view === "list" 
-      ? e("div", null,
-          e("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: 'wrap', gap: 10 } },
-            e("h2", { style: { color: P.priD, fontWeight: 900 } }, "📋 1號車 點班歷史紀錄"),
-            e("button", { onClick: () => { SFX.nav(); setEditRecord(null); setView("form"); }, style: { padding: "10px 18px", borderRadius: 14, border: "none", background: `linear-gradient(135deg, ${P.pri}, ${P.teal})`, color: "#fff", fontWeight: 800, fontSize: 15, cursor: "pointer", boxShadow: "0 4px 12px rgba(124,92,191,0.3)" } }, "➕ 開始點班")
-          ),
-          (!records || records.length === 0)
-            ? e("div", { style: { textAlign: "center", padding: "40px 20px", background: P.card, borderRadius: 18, color: P.muted, border: `1px solid ${P.border}` } },
-                e("p", { style: { fontSize: 48, marginBottom: 8 } }, "📭"), e("p", { style: { fontWeight: 700 } }, "目前沒有點班紀錄"), e("p", { style: { fontSize: 13, marginTop: 4 } }, "點擊右上角「開始點班」建立一筆吧！")
-              )
-            : records.map(r => r && r.id ? e(RecordCard, { key: r.id, record: r, onDelete: handleDelete, onEdit: (rec) => { SFX.nav(); setEditRecord(rec); setView("form"); } }) : null)
-        )
-      : e(CheckForm, { records: records, onSave: handleSave, onDone: () => { setView("list"); setEditRecord(null); }, onCancel: () => { SFX.nav(); setView("list"); setEditRecord(null); }, editRecord: editRecord })
+    view === "list" && e("div", null,
+      e("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: 'wrap', gap: 10 } },
+        e("h2", { style: { color: P.priD, fontWeight: 900 } }, "📋 1號車 點班歷史紀錄"),
+        e("button", { onClick: () => { SFX.nav(); setEditRecord(null); setView("form"); }, style: { padding: "10px 18px", borderRadius: 14, border: "none", background: `linear-gradient(135deg, ${P.pri}, ${P.teal})`, color: "#fff", fontWeight: 800, fontSize: 15, cursor: "pointer", boxShadow: "0 4px 12px rgba(124,92,191,0.3)" } }, "➕ 開始點班")
+      ),
+      (!records || records.length === 0)
+        ? e("div", { style: { textAlign: "center", padding: "40px 20px", background: P.card, borderRadius: 18, color: P.muted, border: `1px solid ${P.border}` } },
+            e("p", { style: { fontSize: 48, marginBottom: 8 } }, "📭"), e("p", { style: { fontWeight: 700 } }, "目前沒有點班紀錄"), e("p", { style: { fontSize: 13, marginTop: 4 } }, "點擊右上角「開始點班」建立一筆吧！")
+          )
+        : records.map(r => r && r.id ? e(RecordCard, { key: r.id, record: r, onDelete: handleDelete, onEdit: (rec) => { SFX.nav(); setEditRecord(rec); setView("form"); } }) : null)
+    ),
+    view === "form" && e(CheckForm, { 
+      records: records, 
+      onSave: handleSave, 
+      onDone: () => { setView("list"); setEditRecord(null); }, 
+      onCancel: () => { SFX.nav(); setView("list"); setEditRecord(null); }, 
+      editRecord: editRecord,
+      triggerReminder: () => { setView("reminder"); setEditRecord(null); }
+    }),
+    view === "reminder" && e(ReminderPage, { 
+      onFinish: () => { setView("list"); } 
+    })
   );
 }
 
-// 雙重保障初始化機制：防止 DOMContentLoaded 被錯過導致的白屏
 function startApp() {
   try {
     const container = document.getElementById('root');
