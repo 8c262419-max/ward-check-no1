@@ -23,7 +23,7 @@
 const { useState, useEffect } = React;
 const e = React.createElement;
 
-// 請記得更換成你針對1號車部署的新的 GAS 網址（如果要區分工作表的話）
+// 請更換成您針對 1 號車部署的 GAS 網址
 const GAS_URL = "https://script.google.com/macros/s/AKfycbw7zsykFlp7zcyIxCP5iieN7v-82SsDEkbYPNGT1z7W7wQsyDq5rfgK5d_CfgyrGI5T/exec";
 const STORAGE_KEY = "ward_check_records_8c_v1";
 
@@ -47,7 +47,6 @@ for (let r = 1; r <= 22; r++) {
 const ALL_BEDS = [];
 ROOM_CONFIG.forEach(({ room, subs }) => subs.forEach(s => ALL_BEDS.push(s ? `${room}-${s}` : `${room}`)));
 
-// 1號車點班項目設定（計數與點床）
 const ITEMS_CONFIG = [
   { id: "slide_board",     label: "滑板",            icon: "🛹", type: "count_only", expected: 2, max: 2 },
   { id: "thoracic_bottle", label: "胸腔引流瓶",      icon: "🫁", type: "split",      poolMax: 3 }
@@ -280,7 +279,7 @@ function CountOnlyRow({ cfg, value, onChange, hasError }) {
       e("button", { onClick:()=>{ SFX.plus(); onChange({ ...v,count:Math.min((v.count||0)+1,cfg.max||99) }); }, style: cBtn(P.pri,P.card) }, "+")
     ),
     eff!=null && e("div", { style: { height:8,background:P.bg,borderRadius:8,overflow:"hidden",border:`1px solid ${P.border}`,marginBottom:10 } },
-      e("div", { style: { height:"100%",width:`${Math.min((v.count||0)/Math.max(eff,1),1)*100}%`,background:mismatch?P.coral:P.mint,borderRadius:8,transition:"width .2s" } })
+      e("div", { height:"100%",width:`${Math.min((v.count||0)/Math.max(eff,1),1)*100}%`,background:mismatch?P.coral:P.mint,borderRadius:8,transition:"width .2s" })
     ),
     e(LoanRow, { v: v, onChange: onChange, maxLoan: 99 }),
     e("input", { placeholder: "📝 備註（選填）", value: v.note||"", onChange: e=>onChange({ ...v,note:e.target.value }),
@@ -288,7 +287,6 @@ function CountOnlyRow({ cfg, value, onChange, hasError }) {
   );
 }
 
-// 獨立抽出的打勾元件
 function CheckboxRow({ checked, label, icon, onToggle }) {
   return e("button", { 
     onClick: onToggle,
@@ -316,12 +314,10 @@ function CheckForm({ records, onSave, onDone, onCancel, editRecord }) {
   const [nurse,    setNurse]    = useState(editRecord?.nurse||"");
   const [date,     setDate]     = useState(editRecord?.date||today);
   
-  // 核心更改：鎖定為白班，不留選擇按鈕
   const shift = "白班";
 
   const [items,    setItems]    = useState(editRecord?itemsFromRecord(editRecord):defaultItems());
   
-  // 1號車專屬多個打勾狀態狀態
   const [restockChecked, setRestockChecked] = useState(editRecord?.restockChecked || false);
   const [fridgeChecked, setFridgeChecked] = useState(editRecord?.fridgeChecked || false);
   const [storageChecked, setStorageChecked] = useState(editRecord?.storageChecked || false);
@@ -335,9 +331,8 @@ function CheckForm({ records, onSave, onDone, onCancel, editRecord }) {
   const [goAfter, setGoAfter] = useState(false);
 
   useEffect(() => {
-    // 進入時如果是全新點班，自動帶入昨天的紀錄
     if (!editRecord && records && records.length > 0) {
-      const prevRec = records[0]; // 上一筆白班紀錄
+      const prevRec = records[0]; 
       if (prevRec) {
         setItems(itemsFromRecord(prevRec));
         setRestockChecked(prevRec.restockChecked || false);
@@ -363,7 +358,7 @@ function CheckForm({ records, onSave, onDone, onCancel, editRecord }) {
     if (errs.length) {
       SFX.error();
       setModal({ type:"error",title:"數量異常，無法儲存 🧠",
-        body: e("ul", { style: { margin:0,paddingLeft:18,lineHeight:2,fontSize:14 } }, errs.map((e,i)=>e("li", { key:i, style: { color:P.coral } }, e.msg))) });
+        body: e("ul", { style: { margin:0,paddingLeft:18,lineHeight:2,fontSize:14 } }, errs.map((er,i)=>e("li", { key:i, style: { color:P.coral } }, er.msg))) });
       return;
     }
 
@@ -376,7 +371,7 @@ function CheckForm({ records, onSave, onDone, onCancel, editRecord }) {
     };
 
     await onSave(record, isEdit);
-    SFX.success(); setSaving(false); setSyncing(true);
+    setSaving(false); setSyncing(true);
     try {
       const payload = {
         targetSheet: "1號車",
@@ -388,13 +383,12 @@ function CheckForm({ records, onSave, onDone, onCancel, editRecord }) {
         defibTest: record.defibChecked ? "已完成" : "未完成",
         items: (record.items || []).map(it => {
           const v = it.value, cfg = ITEMS_CONFIG.find(c=>c.id===it.id);
-          const expected = cfg?.type==="split" ? effPoolMax(cfg, v) : effExpected(cfg, v);
+          const expected = cfg?.type==="count_only" ? effPoolMax(cfg, v) : effExpected(cfg, v);
           return { id:it.id, label:it.label, count:v.count || 0, beds:v.beds ? v.beds.join("、") : "", loanCount:v.loanCount || 0, loanNote:v.loanNote || "", note:v.note || "", expected:expected };
         }),
       };
       await fetch(GAS_URL, { method: "POST", mode: "no-cors", body: JSON.stringify(payload) });
       setSyncing(false); SFX.success(); setGoAfter(true);
-      // 核心更改：加入便當與補車之對話框提醒
       setModal({ 
         type:"success", 
         title:"雲端同步成功 ☁️✅", 
@@ -406,7 +400,7 @@ function CheckForm({ records, onSave, onDone, onCancel, editRecord }) {
     }
   }
 
-  const errIds = new Set(validate(items).map(e=>e.id));
+  const errIds = new Set(validate(items).map(er=>er.id));
 
   return e("div", { style: { paddingBottom:90 } },
     syncing && e(SyncingOverlay),
@@ -431,14 +425,12 @@ function CheckForm({ records, onSave, onDone, onCancel, editRecord }) {
         e("span", { style: { background:P.priL,borderRadius:10,padding:"4px 10px" } }, "📋 點班項目 & 檢查清單")
       ),
       
-      // 1號車打勾功能群組
       e(CheckboxRow, { checked: restockChecked, label: "補車", icon: "🛒", onToggle: () => { SFX.toggle(); setRestockChecked(!restockChecked); } }),
       e(CheckboxRow, { checked: fridgeChecked, label: "填寫冰箱溫度 含Nimbex 1amp", icon: "🌡️", onToggle: () => { SFX.toggle(); setFridgeChecked(!fridgeChecked); } }),
       e(CheckboxRow, { checked: storageChecked, label: "填寫庫房溫度", icon: "📦", onToggle: () => { SFX.toggle(); setStorageChecked(!storageChecked); } }),
       e(CheckboxRow, { checked: treatmentChecked, label: "填寫治療室溫度", icon: "🏥", onToggle: () => { SFX.toggle(); setTreatmentChecked(!treatmentChecked); } }),
       e(CheckboxRow, { checked: defibChecked, label: "電擊器放電功能測試", icon: "⚡", onToggle: () => { SFX.toggle(); setDefibChecked(!defibChecked); } }),
 
-      // 胸腔引流瓶 與 滑板
       ITEMS_CONFIG.map(cfg=>
         cfg.type==="split"
           ? e(SplitItemRow, { key: cfg.id, cfg: cfg, value: items[cfg.id], onChange: v=>handleChange(cfg.id,v), hasError: errIds.has(cfg.id) })
@@ -458,7 +450,6 @@ function RecordCard({ record, onDelete, onEdit }) {
   const [open,    setOpen]    = useState(false);
   const [confirm, setConfirm] = useState(false);
 
-  // 計算有幾項打勾是有完成的
   const checkCount = [record.restockChecked, record.fridgeChecked, record.storageChecked, record.treatmentChecked, record.defibChecked].filter(Boolean).length;
 
   return e("div", { style: { background:P.card,borderRadius:18,marginBottom:12,boxShadow:"0 2px 10px #7C5CBF15",overflow:"hidden",border:`1px solid ${P.border}` } },
@@ -475,34 +466,33 @@ function RecordCard({ record, onDelete, onEdit }) {
           e("span", { style: { background:checkCount===5?P.mintL:P.priL,color:checkCount===5?P.mint:P.pri,border:`1px solid ${checkCount===5?P.mint:P.pri}55`,borderRadius:12,padding:"1px 7px",fontSize:11,fontWeight:700 } }, `📋 檢查項已完成 ${checkCount}/5`)
         )
       ),
-      e("span", { color:P.muted,fontSize:18 }, open?"▲":"▼")
+      e("span", { style: { color:P.muted,fontSize:18 } }, open?"▲":"▼")
     ),
     open && e("div", { style: { borderTop:`1px solid ${P.border}`,padding:"12px 16px" } },
-      
-      // 展開顯示各個核取方塊結果
-      e("div", { style: { fontSize:13, paddingBottom:8, borderBottom:`1px solid ${P.border}`, display:"flex", flexDirection:"column", gap:6 } },
+      e("div", { style: { fontSize:13, paddingBottom:8, borderBottom:`1px solid ${P.border}`, display:"flex", flexDirection:"column", gap:6, color:"#555" } },
         e("div", null, record.restockChecked ? "✅ 補車：已完成" : "❌ 補車：未完成"),
         e("div", null, record.fridgeChecked ? "✅ 填寫冰箱溫度 含Nimbex 1amp：已完成" : "❌ 填寫冰箱溫度 含Nimbex 1amp：未完成"),
         e("div", null, record.storageChecked ? "✅ 填寫庫房溫度：已完成" : "❌ 填寫庫房溫度：未完成"),
         e("div", null, record.treatmentChecked ? "✅ 填寫治療室溫度：已完成" : "❌ 填寫治療室溫度：未完成"),
         e("div", null, record.defibChecked ? "✅ 電擊器放電功能測試：已完成" : "❌ 電擊器放電功能測試：未完成")
       ),
-
-      (record?.items || []).map(it=>{
-        if (!it) return null;
-        const v=it.value, lc=v?.loanCount||0;
-        if (!v || !((v.count||0)>0||(v.beds?.length||0)>0||lc>0||v.note)) return null;
-        const cfg=ITEMS_CONFIG.find(c=>c.id===it.id);
-        return e("div", { key: it.id, style: { display:"flex",alignItems:"center",gap:6,padding:"7px 0",borderBottom:`1px solid ${P.border}`,flexWrap:"wrap" } },
-          e("span", { style: { fontSize:15 } }, cfg?.icon),
-          e("span", { style: { fontWeight:700,fontSize:13,minWidth:90 } }, it.label),
-          cfg?.type==="count_only" && e("span", { style: { color:P.pri,fontWeight:700,background:P.priL,borderRadius:10,padding:"2px 9px",fontSize:12 } }, `在場 ${v.count||0} 個`),
-          cfg?.type==="split" && (v.count||0)>0 && e("span", { style: { color:P.pri,fontWeight:700,background:P.priL,borderRadius:10,padding:"2px 9px",fontSize:12 } }, `站內備用 ${v.count||0} 個`),
-          v.beds && v.beds.length > 0 && e("span", { style: { color:P.teal,fontWeight:700,background:P.tealL,borderRadius:10,padding:"2px 9px",fontSize:12 } }, `使用中床號: ${v.beds.join(', ')}`),
-          lc > 0 && e("span", { style: { color:P.orange,fontWeight:700,background:P.orangeL,borderRadius:10,padding:"2px 9px",fontSize:12 } }, `外借/維修 ${lc} 個 (${v.loanNote || '無說明'})`),
-          v.note && e("span", { style: { color:P.muted,fontSize:12,width:'100%',display:'block',marginTop:2 } }, `💬 備註: ${v.note}`)
-        );
-      }),
+      e("div", { style: { marginTop: 6 } },
+        (record?.items || []).map(it=>{
+          if (!it) return null;
+          const v=it.value, lc=v?.loanCount||0;
+          if (!v || !((v.count||0)>0||(v.beds?.length||0)>0||lc>0||v.note)) return null;
+          const cfg=ITEMS_CONFIG.find(c=>c.id===it.id);
+          return e("div", { key: it.id, style: { display:"flex",alignItems:"center",gap:6,padding:"7px 0",borderBottom:`1px solid ${P.border}`,flexWrap:"wrap" } },
+            e("span", { style: { fontSize:15 } }, cfg?.icon),
+            e("span", { style: { fontWeight:700,fontSize:13,minWidth:90 } }, it.label),
+            cfg?.type==="count_only" && e("span", { style: { color:P.pri,fontWeight:700,background:P.priL,borderRadius:10,padding:"2px 9px",fontSize:12 } }, `在場 ${v.count||0} 個`),
+            cfg?.type==="split" && (v.count||0)>0 && e("span", { style: { color:P.pri,fontWeight:700,background:P.priL,borderRadius:10,padding:"2px 9px",fontSize:12 } }, `站內備用 ${v.count||0} 個`),
+            v.beds && v.beds.length > 0 && e("span", { style: { color:P.teal,fontWeight:700,background:P.tealL,borderRadius:10,padding:"2px 9px",fontSize:12 } }, `使用中床號: ${v.beds.join(', ')}`),
+            lc > 0 && e("span", { style: { color:P.orange,fontWeight:700,background:P.orangeL,borderRadius:10,padding:"2px 9px",fontSize:12 } }, `外借/維修 ${lc} 個 (${v.loanNote || '無說明'})`),
+            v.note && e("span", { style: { color:P.muted,fontSize:12,width:'100%',display:'block',marginTop:2 } }, `💬 備註: ${v.note}`)
+          );
+        })
+      ),
       e("div", { style: { display:'flex',gap:8,marginTop:12,justifyContent:'flex-end' } },
         e("button", { onClick: ()=>{ SFX.tap(); onEdit(record); }, style: { padding:"6px 12px",borderRadius:8,border:`1px solid ${P.pri}`,background:'#fff',color:P.pri,fontSize:13,fontWeight:700,cursor:'pointer' } }, "編輯"),
         e("button", { onClick: ()=>{ SFX.tap(); setConfirm(true); }, style: { padding:"6px 12px",borderRadius:8,border:'none',background:P.coral,color:'#fff',fontSize:13,fontWeight:700,cursor:'pointer' } }, "刪除")
