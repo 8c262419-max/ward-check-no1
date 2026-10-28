@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
   <title>8C神經外科病房-1號車</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin></script>
@@ -60,6 +60,14 @@ function saveRecords(recs) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(recs)); } catch {}
 }
 
+// 自動抓取台灣本地時間的 YYYY-MM-DD
+function getLocalDateString() {
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60000;
+  const localDate = new Date(now.getTime() - offset);
+  return localDate.toISOString().split("T")[0];
+}
+
 const TRIPLE_ROOMS = [1, 2, 20, 21];
 const SINGLE_ROOMS = [3, 5, 6, 17, 18, 19, 22];
 const ROOM_CONFIG  = [];
@@ -73,7 +81,7 @@ const ALL_BEDS = [];
 ROOM_CONFIG.forEach(({ room, subs }) => subs.forEach(s => ALL_BEDS.push(s ? `${room}-${s}` : `${room}`)));
 
 const ITEMS_CONFIG = [
-  { id: "slide_board",     label: "滑板",            icon: "🛹", type: "count_only", expected: 2, max: 2 },
+  { id: "slide_board",      label: "滑板",            icon: "🛹", type: "count_only", expected: 2, max: 2 },
   { id: "thoracic_bottle", label: "胸腔引流瓶",      icon: "🫁", type: "split",      poolMax: 3 }
 ];
 
@@ -360,7 +368,7 @@ const lbl = { fontSize:13,fontWeight:700,color:P.muted,display:"block" };
 const inp = { width:"100%",padding:"10px 14px",borderRadius:12,marginTop:4,border:`1.5px solid ${P.border}`,fontSize:15,boxSizing:"border-box",outline:"none",background:P.bg };
 
 function CheckForm({ records, onSave, onDone, onCancel, editRecord, triggerReminder }) {
-  const today = new Date().toISOString().split("T")[0];
+  const today = getLocalDateString();
   const [nurse,    setNurse]    = useState(editRecord?.nurse||"");
   const [date,     setDate]     = useState(editRecord?.date||today);
   const shift = "白班";
@@ -506,39 +514,37 @@ function RecordCard({ record, onDelete, onEdit }) {
         ),
         e("div", { style: { fontSize:12,color:P.muted,marginTop:2,display:"flex",gap:8,alignItems:"center",flexWrap:"wrap" } }, 
           `📅 ${record?.date || ""}`,
-          e("span", { style: { background:checkCount===5?P.mintL:P.priL,color:checkCount===5?P.mint:P.pri,border:`1px solid ${checkCount===5?P.mint:P.pri}55`,borderRadius:12,padding:"1px 7px",fontSize:11,fontWeight:700 } }, `📋 檢查項已完成 ${checkCount}/5`)
+          e("span", { style: { background:P.mintL, color:P.mint, border:`1px solid ${P.mint}55`, borderRadius:12, padding:"1px 7px", fontSize:11, fontWeight:700 } }, `✓ 檢查項目 ${checkCount}/5`),
+          (record?.items||[]).filter(it=>(it.value?.loanCount||0)>0).length>0 && e("span", { style: { background:P.orangeL,color:P.orange,border:`1px solid ${P.orange}55`,borderRadius:12,padding:"1px 7px",fontSize:11,fontWeight:700 } }, `🔄 外借/維修`)
         )
       ),
       e("span", { style: { color:P.muted,fontSize:18 } }, open?"▲":"▼")
     ),
     open && e("div", { style: { borderTop:`1px solid ${P.border}`,padding:"12px 16px" } },
-      e("div", { style: { fontSize:13, paddingBottom:8, borderBottom:`1px solid ${P.border}`, display:"flex", flexDirection:"column", gap:6, color:"#555" } },
-        e("div", null, record.restockChecked ? "✅ 補車：已完成" : "❌ 補車：未完成"),
-        e("div", null, record.fridgeChecked ? "✅ 填寫冰箱溫度 含Nimbex 1amp：已完成" : "❌ 填寫冰箱溫度 含Nimbex 1amp：未完成"),
-        e("div", null, record.storageChecked ? "✅ 填寫庫房溫度：已完成" : "❌ 填寫庫房溫度：未完成"),
-        e("div", null, record.treatmentChecked ? "✅ 填寫治療室溫度：已完成" : "❌ 填寫治療室溫度：未完成"),
-        e("div", null, record.defibChecked ? "✅ 電擊器放電功能測試：已完成" : "❌ 電擊器放電功能測試：未完成")
+      e("div", { style: { display:"grid", gridTemplateColumns:"1fr 1fr", gap:6, marginBottom:10, paddingBottom:10, borderBottom:`1px solid ${P.border}` } },
+        e("div", { style: { fontSize:12, color:record.restockChecked?P.mint:P.muted } }, record.restockChecked?"✓ 補車完成":"✕ 未補車"),
+        e("div", { style: { fontSize:12, color:record.fridgeChecked?P.mint:P.muted } }, record.fridgeChecked?"✓ 冰箱溫度ok":"✕ 冰箱溫度未填"),
+        e("div", { style: { fontSize:12, color:record.storageChecked?P.mint:P.muted } }, record.storageChecked?"✓ 庫房溫度ok":"✕ 庫房溫度未填"),
+        e("div", { style: { fontSize:12, color:record.treatmentChecked?P.mint:P.muted } }, record.treatmentChecked?"✓ 治療室溫度ok":"✕ 治療室溫度未填"),
+        e("div", { style: { fontSize:12, color:record.defibChecked?P.mint:P.muted } }, record.defibChecked?"✓ 電擊器測試ok":"✕ 電擊器未測試")
       ),
-      e("div", { style: { marginTop: 6 } },
-        (record?.items || []).map(it=>{
-          if (!it) return null;
-          const v=it.value, lc=v?.loanCount||0;
-          if (!v || !((v.count||0)>0||(v.beds?.length||0)>0||lc>0||v.note)) return null;
-          const cfg=ITEMS_CONFIG.find(c=>c.id===it.id);
-          return e("div", { key: it.id, style: { display:"flex",alignItems:"center",gap:6,padding:"7px 0",borderBottom:`1px solid ${P.border}`,flexWrap:"wrap" } },
-            e("span", { style: { fontSize:15 } }, cfg?.icon),
-            e("span", { style: { fontWeight:700,fontSize:13,minWidth:90 } }, it.label),
-            cfg?.type==="count_only" && e("span", { style: { color:P.pri,fontWeight:700,background:P.priL,borderRadius:10,padding:"2px 9px",fontSize:12 } }, `在場 ${v.count||0} 個`),
-            cfg?.type==="split" && (v.count||0)>0 && e("span", { style: { color:P.pri,fontWeight:700,background:P.priL,borderRadius:10,padding:"2px 9px",fontSize:12 } }, `站內備用 ${v.count||0} 個`),
-            v.beds && v.beds.length > 0 && e("span", { style: { color:P.teal,fontWeight:700,background:P.tealL,borderRadius:10,padding:"2px 9px",fontSize:12 } }, `使用中床號: ${v.beds.join(', ')}`),
-            lc > 0 && e("span", { style: { color:P.orange,fontWeight:700,background:P.orangeL,borderRadius:10,padding:"2px 9px",fontSize:12 } }, `外借/維修 ${lc} 個 (${v.loanNote || '無說明'})`),
-            v.note && e("span", { style: { color:P.muted,fontSize:12,width:'100%',display:'block',marginTop:2 } }, `💬 備註: ${v.note}`)
-          );
-        })
-      ),
+      (record?.items || []).map(it=>{
+        if (!it) return null;
+        const v=it.value, lc=v?.loanCount||0;
+        const cfg=ITEMS_CONFIG.find(c=>c.id===it.id);
+        return e("div", { key: it.id, style: { display:"flex",alignItems:"center",gap:6,padding:"7px 0",borderBottom:`1px solid ${P.border}`,flexWrap:"wrap" } },
+          e("span", { style: { fontSize:15 } }, cfg?.icon),
+          e("span", { style: { fontWeight:700,fontSize:13,minWidth:90 } }, it.label),
+          cfg?.type==="count_only" && e("span", { style: { color:P.pri,fontWeight:700,background:P.priL,borderRadius:10,padding:"2px 9px",fontSize:12 } }, `在場 ${v.count||0} 個`),
+          cfg?.type==="split" && (v.count||0)>0 && e("span", { style: { color:P.pri,fontWeight:700,background:P.priL,borderRadius:10,padding:"2px 9px",fontSize:12 } }, `站內 ${v.count||0} 個`),
+          v.beds && v.beds.length > 0 && e("span", { style: { color:P.teal,fontWeight:700,background:P.tealL,borderRadius:10,padding:"2px 9px",fontSize:12 } }, `使用中: ${v.beds.join(', ')}`),
+          lc > 0 && e("span", { style: { color:P.orange,fontWeight:700,background:P.orangeL,borderRadius:10,padding:"2px 9px",fontSize:12 } }, `外借/維修 ${lc} 個 (${v.loanNote || '無說明'})`),
+          v.note && e("span", { style: { color:P.muted,fontSize:12,width:'100%',display:'block',marginTop:2 } }, `💬 備註: ${v.note}`)
+        );
+      }),
       e("div", { style: { display:'flex',gap:8,marginTop:12,justifyContent:'flex-end' } },
-        e("button", { onClick: ()=>{ SFX.tap(); onEdit(record); }, style: { padding:"6px 12px",borderRadius:8,border:`1px solid ${P.pri}`,background:'#fff',color:P.pri,fontSize:13,fontWeight:700 } }, "編輯"),
-        e("button", { onClick: ()=>{ SFX.tap(); setConfirm(true); }, style: { padding:"6px 12px",borderRadius:8,border:'none',background:P.coral,color:'#fff',fontSize:13,fontWeight:700 } }, "刪除")
+        e("button", { onClick: ()=>{ SFX.tap(); onEdit(record); }, style: { padding:"6px 12px",borderRadius:8,border:`1px solid ${P.pri}`,background:'#fff',color:P.pri,fontSize:13,fontWeight:700,cursor:'pointer' } }, "編輯"),
+        e("button", { onClick: ()=>{ SFX.tap(); setConfirm(true); }, style: { padding:"6px 12px",borderRadius:8,border:'none',background:P.coral,color:'#fff',fontSize:13,fontWeight:700,cursor:'pointer' } }, "刪除")
       )
     )
   );
@@ -552,66 +558,32 @@ function App() {
   useEffect(() => { setRecords(loadRecords()); }, []);
 
   function handleSave(record, isEdit) {
-    const currentRecords = records || [];
-    const next = isEdit ? currentRecords.map(r => r && r.id === record.id ? record : r) : [record, ...currentRecords];
+    const next = isEdit ? records.map(r => r.id === record.id ? record : r) : [record, ...records];
     setRecords(next); saveRecords(next);
   }
-  function handleDelete(id) { 
-    const currentRecords = records || [];
-    const next = currentRecords.filter(r => r && r.id !== id); 
-    setRecords(next); saveRecords(next); 
-  }
+  function handleDelete(id) { const next = records.filter(r => r.id !== id); setRecords(next); saveRecords(next); }
 
   return e("div", { style: { maxWidth: 600, margin: "0 auto", paddingBottom: 40 } },
-    view === "list" && e("div", null,
-      e("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: 'wrap', gap: 10 } },
-        e("h2", { style: { color: P.priD, fontWeight: 900 } }, "📋 1號車 點班歷史紀錄"),
-        e("button", { onClick: () => { SFX.nav(); setEditRecord(null); setView("form"); }, style: { padding: "10px 18px", borderRadius: 14, border: "none", background: `linear-gradient(135deg, ${P.pri}, ${P.teal})`, color: "#fff", fontWeight: 800, fontSize: 15, boxShadow: "0 4px 12px rgba(124,92,191,0.3)" } }, "➕ 開始點班")
-      ),
-      (!records || records.length === 0)
-        ? e("div", { style: { textAlign: "center", padding: "40px 20px", background: P.card, borderRadius: 18, color: P.muted, border: `1px solid ${P.border}` } },
-            e("p", { style: { fontSize: 48, marginBottom: 8 } }, "📭"), e("p", { style: { fontWeight: 700 } }, "目前沒有點班紀錄"), e("p", { style: { fontSize: 13, marginTop: 4 } }, "點擊右上角「開始點班」建立一筆吧！")
-          )
-        : records.map(r => r && r.id ? e(RecordCard, { key: r.id, record: r, onDelete: handleDelete, onEdit: (rec) => { SFX.nav(); setEditRecord(rec); setView("form"); } }) : null)
-    ),
-    view === "form" && e(CheckForm, { 
-      records: records, 
-      onSave: handleSave, 
-      onDone: () => { setView("list"); setEditRecord(null); }, 
-      onCancel: () => { SFX.nav(); setView("list"); setEditRecord(null); }, 
-      editRecord: editRecord,
-      triggerReminder: () => { setView("reminder"); setEditRecord(null); }
-    }),
-    view === "reminder" && e(ReminderPage, { 
-      onFinish: () => { setView("list"); } 
-    })
+    view === "list" 
+      ? e("div", null,
+          e("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: 'wrap', gap: 10 } },
+            e("h2", { style: { color: P.priD, fontWeight: 900 } }, "📋 1號車點班歷史紀錄"),
+            e("button", { onClick: () => { SFX.nav(); setEditRecord(null); setView("form"); }, style: { padding: "10px 18px", borderRadius: 14, border: "none", background: `linear-gradient(135deg, ${P.pri}, ${P.teal})`, color: "#fff", fontWeight: 800, fontSize: 15, cursor: "pointer", boxShadow: "0 4px 12px rgba(124,92,191,0.3)" } }, "➕ 開始點班")
+          ),
+          records.length === 0 
+            ? e("div", { style: { textAlign: "center", padding: "40px 20px", background: P.card, borderRadius: 18, color: P.muted, border: `1px solid ${P.border}` } },
+                e("p", { style: { fontSize: 48, marginBottom: 8 } }, "📭"), e("p", { style: { fontWeight: 700 } }, "目前沒有點班紀錄"), e("p", { style: { fontSize: 13, marginTop: 4 } }, "點擊右上角「開始點班」建立一筆吧！")
+              )
+            : records.map(r => e(RecordCard, { key: r.id, record: r, onDelete: handleDelete, onEdit: (rec) => { SFX.nav(); setEditRecord(rec); setView("form"); } }))
+        )
+      : view === "reminder"
+      ? e(ReminderPage, { onFinish: () => { setView("list"); setEditRecord(null); } })
+      : e(CheckForm, { records: records, onSave: handleSave, onDone: () => setView("list"), onCancel: () => { SFX.nav(); setView("list"); }, editRecord: editRecord, triggerReminder: () => setView("reminder") })
   );
 }
 
-function startApp() {
-  try {
-    const container = document.getElementById('root');
-    if (container) {
-      const root = ReactDOM.createRoot(container);
-      root.render(e(App));
-    }
-  } catch (err) {
-    console.error("React Render Error: ", err);
-    var rootDiv = document.getElementById('root');
-    if (rootDiv) {
-      rootDiv.innerHTML = '<div style="padding:30px; text-align:center; color:#FF6B6B;">' +
-        '<h3>⚠️ 系統渲染發生錯誤</h3>' +
-        '<p style="font-size:12px;">' + err.message + '</p>' +
-        '</div>';
-    }
-  }
-}
-
-if (document.readyState === "complete" || document.readyState === "interactive") {
-  startApp();
-} else {
-  document.addEventListener("DOMContentLoaded", startApp);
-}
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(e(App));
 </script>
 </body>
 </html>
