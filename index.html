@@ -481,7 +481,7 @@ function CheckForm({ records, onSave, onDone, onCancel, editRecord, triggerRemin
       e(CheckboxRow, { checked: fridgeChecked, label: "填寫冰箱溫度 含Nimbex 1amp", icon: "🌡️", onToggle: () => { SFX.toggle(); setFridgeChecked(!fridgeChecked); } }),
       e(CheckboxRow, { checked: storageChecked, label: "填寫庫房溫度", icon: "📦", onToggle: () => { SFX.toggle(); setStorageChecked(!storageChecked); } }),
       e(CheckboxRow, { checked: treatmentChecked, label: "填寫治療室溫度", icon: "🏥", onToggle: () => { SFX.toggle(); setTreatmentChecked(!treatmentChecked); } }),
-      e(CheckboxRow, { checked: defibChecked, label: "電擊器放電功能測試", icon: "⚡", onToggle: () => { SFX.toggle(); setDefibChecked(!defibChecked); } }),
+      e(CheckboxRow, { checked: defibChecked, label: "電擊器一級保養(使用N-Poral)並每周六進行放電測試", icon: "⚡", onToggle: () => { SFX.toggle(); setDefibChecked(!defibChecked); } }),
 
       ITEMS_CONFIG.map(cfg=>
         cfg.type==="split"
@@ -526,7 +526,7 @@ function RecordCard({ record, onDelete, onEdit }) {
         e("div", { style: { fontSize:12, color:record.fridgeChecked?P.mint:P.muted } }, record.fridgeChecked?"✓ 冰箱溫度ok":"✕ 冰箱溫度未填"),
         e("div", { style: { fontSize:12, color:record.storageChecked?P.mint:P.muted } }, record.storageChecked?"✓ 庫房溫度ok":"✕ 庫房溫度未填"),
         e("div", { style: { fontSize:12, color:record.treatmentChecked?P.mint:P.muted } }, record.treatmentChecked?"✓ 治療室溫度ok":"✕ 治療室溫度未填"),
-        e("div", { style: { fontSize:12, color:record.defibChecked?P.mint:P.muted } }, record.defibChecked?"✓ 電擊器測試ok":"✕ 電擊器未測試")
+        e("div", { style: { fontSize:12, color:record.defibChecked?P.mint:P.muted } }, record.defibChecked?"✓ 電擊器保養ok":"✕ 電擊器未完成")
       ),
       (record?.items || []).map(it=>{
         if (!it) return null;
